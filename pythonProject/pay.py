@@ -18,12 +18,60 @@ ws2 = sh2.sheet1
 ws3 = sh2.worksheet(title='Места на теплоход')
 
 def generate_text():
-    htmlBody = '<p>Поздравляем, вы успешно оплатили стартовый взнос на Кругосветку-2024!</p> <p>Будем ждать вас на старте вашего маршрута</p><p>Приятных путешествий!</p>'
+    htmlBody = '<p>Поздравляем, вы успешно оплатили стартовый взнос на Кругосветку-2024!</p> <p>Будем ждать вас на старте вашего маршрута</p> <p>Приятных путешествий!</p>'
     return htmlBody
 
 def generate_error():
     htmlBody = '<p>К сожалению, выбранный вами рейс на теплоход полностью заполнен и вам не хватит места, поэтому предлагаю выбрать другой рейс.</p><p>Для этого необходимо ещё раз ответить на форму по ссылке: https://forms.gle/VXaRP9V3qFJMGKBn8</p>'
     return htmlBody
+
+def generate_error2(to, lastteg, ws2, ws1):
+    htmlBody = '<p>Ваша оплата уже подтверждена</p><h4><u>Регистрационные данные:</u></h4><ol>'
+    # ---НОМЕР---
+    htmlBody += '<li>Индивидуальный номер и номер карты участника: ' + str(to) + '</li>'
+    # ---ДИСТАНЦИЯ---
+    if ws2.cell(row=to, col=13).value == None:
+        dist = ws2.cell(row=to, col=14).value
+    else:
+        dist = ws2.cell(row=to, col=13).value
+    htmlBody += '<li>Дистанция: ' + dist + '</li>'
+    # ---КОЛИЧЕСТВО ЧЕЛОВЕК ---
+    if (ws2.cell(row=to, col=5).value == 'Групповая'):
+        htmlBody += '<li>Количество человек в группе: ' + str(ws2.cell(row=to, col=8).value) + '</li>'
+    # ---МЕСТО СТАРТА - --
+    htmlBody += '<li>Место старта: ' + ws2.cell(row=to, col=12).value + '</li>'
+    if ws1.cell(row=lastteg, col=8).value != None or ws1.cell(row=lastteg, col=9).value != None:
+        if ws1.cell(row=lastteg, col=8).value != None:
+            htmlBody += '<li>Рейс теплохода: ' + ws1.cell(row=lastteg, col=8).value + '</li></ol>'
+        else:
+            htmlBody += '<li>Рейс теплохода: ' + ws1.cell(row=lastteg, col=9).value + '</li></ol>'
+    else:
+        htmlBody += '</ol>'
+    return htmlBody
+
+def send_error(To, server):
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = To
+    msg['Subject'] = "Регистрация на Кругосветку-2024"
+    msg.attach(MIMEText(generate_error(), 'html'))
+    server.sendmail(sender_email, To, msg.as_string())
+
+def send_text(To, server):
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = To
+    msg['Subject'] = "Регистрация на Кругосветку-2024"
+    msg.attach(MIMEText(generate_text(), 'html'))
+    server.sendmail(sender_email, To, msg.as_string())
+
+def send_error2(To, lastteg, to, server, ws2, ws1):
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = To
+    msg['Subject'] = "Регистрация на Кругосветку-2024"
+    msg.attach(MIMEText(generate_error2(to, lastteg, ws2, ws1), 'html'))
+    server.sendmail(sender_email, To, msg.as_string())
 async def pay():
     server = smtplib.SMTP('smtp.mail.ru: 587')
     server.starttls()
@@ -40,44 +88,40 @@ async def pay():
                     rey = ws1.cell(row=lastteg, col=9).value
                 else:
                     rey = ws1.cell(row=lastteg, col=8).value
-                rey = int(rey[0]) + 3
-                if ws2.cell(row=lastteg, col=3).value < ws3.cell(row=rey, col=3).value:
-                    msg = MIMEMultipart()
-                    msg['From'] = sender_email
-                    msg['To'] = To
-                    msg['Subject'] = "Регистрация на Кругосветку-2024"
-                    ws2.update_cell(row=to, col=15, value='2')
-                    msg.attach(MIMEText(generate_error(), 'html'))
-                    server.sendmail(sender_email, To, msg.as_string())
-                    with open('lastteg.txt', 'r+', encoding='utf-8') as f:
-                        f.seek(0)
-                        f.truncate(0)
-                        f.write(str(lastteg))
-                        f.close()
-                    ws1.update_cell(row=lastteg, col=10, value='1')
-                else:
-                    if ws2.cell(row=lastteg, col=3).value == 1:
-                        kol = int(ws3.cell(row=rey, col=6).value) + 1
-                        ws3.update_cell(row=rey, col=6, value=kol)
+                if rey != None:
+                    rey = int(rey[0]) + 3
+                    if int(ws1.cell(row=lastteg, col=3).value) > int(ws3.cell(row=rey, col=3).value):
+                        print(1, lastteg)
+                        send_error(To, server)
+                        ws1.update_cell(row=lastteg, col=10, value='1')
                     else:
-                        kol = int(ws3.cell(row=rey, col=7).value) + int(ws2.cell(row=lastteg, col=3).value)
-                        ws3.update_cell(row=rey, col=6, value=kol)
-                    msg = MIMEMultipart()
-                    msg['From'] = sender_email
-                    msg['To'] = To
-                    msg['Subject'] = "Регистрация на Кругосветку-2024"
+                        if int(ws1.cell(row=lastteg, col=3).value) == 1:
+                            kol = int(ws3.cell(row=rey, col=6).value) + 1
+                            ws3.update_cell(row=rey, col=6, value=kol)
+                        else:
+                            kol = int(ws3.cell(row=rey, col=7).value) + int(ws1.cell(row=lastteg, col=3).value)
+                            ws3.update_cell(row=rey, col=7, value=kol)
+                        send_text(To, server)
+                        ws2.update_cell(row=to, col=15, value='2')
+                else:
+                    print('ok')
+                    send_text(To, server)
                     ws2.update_cell(row=to, col=15, value='2')
-                    msg.attach(MIMEText(generate_text(), 'html'))
-                    server.sendmail(sender_email, To, msg.as_string())
-                    with open('lastteg.txt', 'r+', encoding='utf-8') as f:
-                        f.seek(0)
-                        f.truncate(0)
-                        f.write(str(lastteg))
-                        f.close()
             else:
                 ws1.update_cell(row=lastteg, col=10, value='2')
+                send_error2(To, lastteg, to, server, ws2, ws1)
             lastteg += 1
-            await asyncio.sleep(60)
+            with open('lastteg.txt', 'r+', encoding='utf-8') as f:
+                f.seek(0)
+                f.truncate(0)
+                f.write(str(lastteg))
+                f.close()
+            print(lastteg)
+            await asyncio.sleep(90)
         else:
             print('zzZp')
+            server.close()
             await asyncio.sleep(600)
+            server = smtplib.SMTP('smtp.mail.ru: 587')
+            server.starttls()
+            server.login(sender_email, password)

@@ -38,12 +38,6 @@ def generate_message_text(n, ws, ws1):
     # ---МЕСТО СТАРТА - --
     htmlBody += '<li>Место старта: ' + ws.cell(row=n, col=12).value + '</li>'
 
-        #htmlBody += '<li>Время отправления теплохода: ' + str(values['Регистрация на теплоход (прямой)']) + \
-      #              ' <strong>Не опаздывайте!</strong></li>'
-    #elif (values['Регистрация на теплоход (обратный)'] != 0):
-     #   htmlBody += '<li>Время отправления теплохода: ' + values[
-      #  'Регистрация на теплоход (обратный)'] + ' <strong>Не опаздывайте!</strong></li>';
-
     # ---ЦЕНА - --
     htmlBody += '</ol>'
     allPrice = 100
@@ -97,10 +91,14 @@ async def main():
                 f.truncate(0)
                 f.write(str(n))
                 f.close()
-            await asyncio.sleep(60)
+            await asyncio.sleep(90)
         else:
             print('zzZ')
+            server.close()
             await asyncio.sleep(600)
+            server = smtplib.SMTP('smtp.mail.ru: 587')
+            server.starttls()
+            server.login(sender_email, password)
 
 
 # Press the green button in the gutter to run the script.
